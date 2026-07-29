@@ -5,11 +5,6 @@ export function ManagerMatrix() {
   const team = useRealtimeStore((s) => s.team);
   const bw = biweek();
 
-  const liveHours = (m: { weeklyClosedHours: number; openSince: string | null }) => {
-    if (!m.openSince) return m.weeklyClosedHours;
-    return m.weeklyClosedHours + (Date.now() - new Date(m.openSince).getTime()) / 3_600_000;
-  };
-
   const clockedIn = team.filter((m) => m.status === "in").length;
 
   return (
