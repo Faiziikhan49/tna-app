@@ -1,12 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
-/**
- * Managers correct missed/erroneous punches by writing custom historical
- * timestamps. Allowed by RLS (time_logs_mgr_write) and stamped source=
- * 'manager_override' so corrections are distinguishable from geofenced punches
- * in the audit trail.
- */
 export function PunchOverride({ userId, managerId }: { userId: string; managerId: string }) {
   const [inAt, setInAt] = useState("");
   const [outAt, setOutAt] = useState("");
@@ -26,18 +20,20 @@ export function PunchOverride({ userId, managerId }: { userId: string; managerId
     setMsg(error ? error.message : "Override recorded.");
   }
 
+  const field = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400";
+
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 p-4">
-      <h2 className="font-medium">Historical punch override</h2>
+    <div className="space-y-3 rounded-2xl bg-slate-50 p-4">
+      <h3 className="font-semibold text-slate-800">Fix a punch</h3>
       <label className="block text-xs text-slate-500">Clock in</label>
-      <input type="datetime-local" value={inAt} onChange={(e) => setInAt(e.target.value)} className="w-full rounded border px-2 py-1" />
+      <input type="datetime-local" value={inAt} onChange={(e) => setInAt(e.target.value)} className={field} />
       <label className="block text-xs text-slate-500">Clock out (optional)</label>
-      <input type="datetime-local" value={outAt} onChange={(e) => setOutAt(e.target.value)} className="w-full rounded border px-2 py-1" />
-      <input placeholder="Reason" value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded border px-2 py-1" />
-      <button onClick={save} className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">
+      <input type="datetime-local" value={outAt} onChange={(e) => setOutAt(e.target.value)} className={field} />
+      <input placeholder="Reason" value={note} onChange={(e) => setNote(e.target.value)} className={field} />
+      <button onClick={save} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white">
         Record override
       </button>
-      {msg && <p className="text-sm text-slate-600">{msg}</p>}
+      {msg && <p className="text-sm text-emerald-600">{msg}</p>}
     </div>
   );
 }
