@@ -6,6 +6,7 @@ import { Auth } from "./components/Auth";
 import { EmployeeDashboard } from "./components/EmployeeDashboard";
 import { ManagerView } from "./components/ManagerView";
 import { InstallPrompt } from "./components/InstallPrompt";
+import { ResetPassword } from "./components/ResetPassword";
 
 interface Profile {
   id: string;
@@ -13,11 +14,24 @@ interface Profile {
   role: "employee" | "manager";
 }
 
+// Try a few times — right after registration the profile row appears a
+// moment after the session does, so we wait for it instead of erroring.
+async function loadProfile(userId: string): Promise<Profile | null> {
+  for (let i = 0; i < 6; i++) {
+    const { data } = await supabase
+      .from("users").select("id, full_name, role").eq("id", userId).maybeSingle();
+    if (data) return data as Profile;
+    await new Promise((r) => setTimeout(r, 600));
+  }
+  return null;
+}
+
 export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
   const initDone = useRef(false);
 
   const init = useRealtimeStore((s) => s.init);
@@ -28,11 +42,13 @@ export function App() {
       setSession(data.session);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
       setSession(s);
       if (!s) {
         setProfile(null);
         setProfileError(null);
+        setRecovering(false);
         initDone.current = false;
         teardown();
       }
@@ -41,32 +57,26 @@ export function App() {
   }, [teardown]);
 
   useEffect(() => {
-    if (!session?.user) return;
+    if (!session?.user || recovering) return;
     (async () => {
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, full_name, role")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (error || !data) {
-        setProfileError(
-          "No profile found for this account. It may not have completed registration.",
-        );
+      const p = await loadProfile(session.user.id);
+      if (!p) {
+        setProfileError("No profile found for this account. It may not have completed registration.");
         return;
       }
-      const p = data as Profile;
       setProfile(p);
       if (!initDone.current) {
         initDone.current = true;
         await init(p.id, p.role);
       }
     })();
-  }, [session, init]);
+  }, [session, init, recovering]);
 
   async function signOut() {
     await supabase.auth.signOut();
   }
+
+  if (recovering) return <ResetPassword />;
 
   if (loading) {
     return <div className="grid min-h-screen place-items-center text-slate-400">Loading…</div>;
