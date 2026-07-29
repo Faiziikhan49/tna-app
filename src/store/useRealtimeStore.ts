@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabaseClient";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { biweek, scheduledHours, actualHours } from "../lib/scheduling";
 
 export interface TimeLog {
   id: string;
@@ -8,30 +9,33 @@ export interface TimeLog {
   clock_in_at: string;
   clock_out_at: string | null;
 }
-export interface Schedule {
-  id: string;
-  user_id: string;
-  shift_date: string;
-  start_time: string;
-  end_time: string;
-}
 export interface TeamMember {
   id: string;
+  employee_id: string;
   full_name: string;
   status: "in" | "out";
   weeklyClosedHours: number;
   openSince: string | null;
+  scheduledBiweek: number;
+  actualBiweek: number;
+}
+export interface AppNotification {
+  id: string;
+  message: string;
+  created_at: string;
 }
 
 interface State {
   role: "employee" | "manager" | null;
   userId: string | null;
+  myEmployeeId: string | null;
   openLog: TimeLog | null;
   closedHoursThisWeek: number;
-  schedules: Schedule[];
   team: TeamMember[];
-  alerts: number;
+  notifications: AppNotification[];
+  tick: number;
   init: (userId: string, role: "employee" | "manager") => Promise<void>;
+  clearNotifications: () => Promise<void>;
   teardown: () => void;
 }
 
@@ -49,52 +53,66 @@ let channels: RealtimeChannel[] = [];
 export const useRealtimeStore = create<State>((set, get) => ({
   role: null,
   userId: null,
+  myEmployeeId: null,
   openLog: null,
   closedHoursThisWeek: 0,
-  schedules: [],
   team: [],
-  alerts: 0,
+  notifications: [],
+  tick: 0,
 
   init: async (userId, role) => {
     set({ userId, role });
-    await refreshSelf(userId, set);
-    if (role === "manager") await refreshTeam(set);
 
-    // Realtime subscriptions. RLS scopes what each role actually receives.
+    const { data: me } = await supabase
+      .from("users").select("employee_id").eq("id", userId).maybeSingle();
+    set({ myEmployeeId: (me as { employee_id: string } | null)?.employee_id ?? null });
+
+    await refreshSelf(userId, set);
+    if (role === "manager") {
+      await refreshTeam(set);
+      await refreshNotifications(set);
+    }
+
+    const bump = () => set({ tick: get().tick + 1 });
+
     const logCh = supabase
       .channel("rt-time_logs")
       .on("postgres_changes", { event: "*", schema: "public", table: "time_logs" }, async () => {
         await refreshSelf(get().userId!, set);
         if (get().role === "manager") await refreshTeam(set);
+        bump();
       })
       .subscribe();
 
-    const schedCh = supabase
-      .channel("rt-schedules")
-      .on("postgres_changes", { event: "*", schema: "public", table: "schedules" }, async () => {
-        const { data } = await supabase
-          .from("schedules")
-          .select("*")
-          .order("shift_date");
-        set({ schedules: (data as Schedule[]) ?? [] });
+    const weeklyCh = supabase
+      .channel("rt-weekly")
+      .on("postgres_changes", { event: "*", schema: "public", table: "weekly_shifts" }, async () => {
+        if (get().role === "manager") await refreshTeam(set);
+        bump();
       })
       .subscribe();
 
-    const alertCh = supabase
-      .channel("rt-alerts")
-      .on("postgres_changes", { event: "*", schema: "public", table: "geofence_alerts" }, async () => {
-        const { count } = await supabase
-          .from("geofence_alerts")
-          .select("*", { count: "exact", head: true })
-          .eq("resolved", false);
-        set({ alerts: count ?? 0 });
+    const swapCh = supabase
+      .channel("rt-swaps")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shift_swaps" }, async () => {
+        if (get().role === "manager") await refreshTeam(set);
+        bump();
       })
       .subscribe();
 
-    channels = [logCh, schedCh, alertCh];
+    const notifCh = supabase
+      .channel("rt-notifs")
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, async () => {
+        if (get().role === "manager") await refreshNotifications(set);
+      })
+      .subscribe();
 
-    const { data: sched } = await supabase.from("schedules").select("*").order("shift_date");
-    set({ schedules: (sched as Schedule[]) ?? [] });
+    channels = [logCh, weeklyCh, swapCh, notifCh];
+  },
+
+  clearNotifications: async () => {
+    await supabase.from("notifications").update({ read: true }).eq("read", false);
+    set({ notifications: [] });
   },
 
   teardown: () => {
@@ -106,42 +124,39 @@ export const useRealtimeStore = create<State>((set, get) => ({
 async function refreshSelf(userId: string, set: (p: Partial<State>) => void) {
   const { start, end } = weekWindow();
   const { data: open } = await supabase
-    .from("time_logs")
-    .select("*")
-    .eq("user_id", userId)
-    .is("clock_out_at", null)
-    .maybeSingle();
-  const { data: closed } = await supabase.rpc("completed_hours", {
-    p_user: userId,
-    p_from: start,
-    p_to: end,
-  });
+    .from("time_logs").select("*").eq("user_id", userId).is("clock_out_at", null).maybeSingle();
+  const { data: closed } = await supabase.rpc("completed_hours", { p_user: userId, p_from: start, p_to: end });
   set({ openLog: (open as TimeLog) ?? null, closedHoursThisWeek: Number(closed ?? 0) });
 }
 
 async function refreshTeam(set: (p: Partial<State>) => void) {
   const { start, end } = weekWindow();
-  const { data: users } = await supabase.from("users").select("id, full_name");
+  const bw = biweek();
+  const { data: users } = await supabase.from("users").select("id, full_name, employee_id");
   const team: TeamMember[] = [];
-  for (const u of (users as { id: string; full_name: string }[]) ?? []) {
+  for (const u of (users as { id: string; full_name: string; employee_id: string }[]) ?? []) {
     const { data: open } = await supabase
-      .from("time_logs")
-      .select("clock_in_at")
-      .eq("user_id", u.id)
-      .is("clock_out_at", null)
-      .maybeSingle();
-    const { data: closed } = await supabase.rpc("completed_hours", {
-      p_user: u.id,
-      p_from: start,
-      p_to: end,
-    });
+      .from("time_logs").select("clock_in_at").eq("user_id", u.id).is("clock_out_at", null).maybeSingle();
+    const { data: closed } = await supabase.rpc("completed_hours", { p_user: u.id, p_from: start, p_to: end });
+    const scheduledBiweek = await scheduledHours(u.employee_id, bw.startDate, bw.endDate);
+    const actualBiweek = await actualHours(u.id, bw.startISO, bw.endISO);
     team.push({
       id: u.id,
+      employee_id: u.employee_id,
       full_name: u.full_name,
       status: open ? "in" : "out",
       weeklyClosedHours: Number(closed ?? 0),
       openSince: (open as { clock_in_at: string } | null)?.clock_in_at ?? null,
+      scheduledBiweek,
+      actualBiweek,
     });
   }
   set({ team });
+}
+
+async function refreshNotifications(set: (p: Partial<State>) => void) {
+  const { data } = await supabase
+    .from("notifications").select("id, message, created_at")
+    .eq("read", false).order("created_at", { ascending: false });
+  set({ notifications: (data as AppNotification[]) ?? [] });
 }
