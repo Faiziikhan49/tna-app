@@ -5,6 +5,11 @@ export function ManagerMatrix() {
   const team = useRealtimeStore((s) => s.team);
   const bw = biweek();
 
+  const liveHours = (m: { weeklyClosedHours: number; openSince: string | null }) => {
+    if (!m.openSince) return m.weeklyClosedHours;
+    return m.weeklyClosedHours + (Date.now() - new Date(m.openSince).getTime()) / 3_600_000;
+  };
+
   const clockedIn = team.filter((m) => m.status === "in").length;
 
   return (
@@ -39,8 +44,13 @@ export function ManagerMatrix() {
                 </div>
                 <div>
                   <p className="font-medium text-slate-700">{m.full_name}</p>
+                  {m.phone && (
+                    <a href={`tel:${m.phone}`} className="text-xs text-slate-400 hover:text-indigo-600">
+                      {m.phone}
+                    </a>
+                  )}
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${
                       m.status === "in" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"
                     }`}
                   >
