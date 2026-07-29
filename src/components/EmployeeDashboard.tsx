@@ -14,57 +14,62 @@ export function EmployeeDashboard() {
     .sort((a, b) => a.shift_date.localeCompare(b.shift_date))
     .slice(0, 7);
 
-  const fmt = (iso: string) =>
+  const fmtTime = (iso: string) =>
     new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const fmtDay = (d: string) =>
+    new Date(d + "T00:00").toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 
   return (
-    <div className="mx-auto max-w-md space-y-5 p-4">
-      <header className="flex items-center justify-between">
-        <h1 className="text-lg font-medium">My day</h1>
+    <div className="space-y-5 p-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-slate-800">My day</h1>
         <span
-          className={`rounded-full px-3 py-1 text-xs font-medium ${
-            openLog ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            openLog ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"
           }`}
         >
-          {openLog ? "Clocked in" : "Clocked out"}
+          {openLog ? "● Clocked in" : "Clocked out"}
         </span>
-      </header>
+      </div>
 
-      <section className="rounded-xl border border-slate-200 p-4">
-        <p className="text-xs uppercase tracking-wide text-slate-500">Current shift</p>
-        <p className="mt-1 text-base">
-          {todayShift
-            ? `${fmt(todayShift.start_time)} – ${fmt(todayShift.end_time)}`
-            : "No shift assigned today"}
+      <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 p-5 text-white shadow-lg">
+        <p className="text-xs font-medium uppercase tracking-wide text-white/70">Hours this week</p>
+        <p className="mt-1 font-mono text-4xl font-bold tabular-nums">{liveHours.toFixed(2)}</p>
+        <p className="mt-1 text-xs text-white/70">
+          {openLog ? "Counting live while you're clocked in" : "Clock in to start counting"}
         </p>
-      </section>
+      </div>
 
-      <section className="rounded-xl bg-slate-900 p-4 text-white">
-        <p className="text-xs uppercase tracking-wide text-slate-400">Hours this week</p>
-        <p className="mt-1 font-mono text-3xl tabular-nums">{liveHours.toFixed(4)}</p>
-      </section>
+      <div className="rounded-2xl bg-white p-5 shadow-sm">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Today's shift</p>
+        <p className="mt-1 text-lg font-semibold text-slate-800">
+          {todayShift ? `${fmtTime(todayShift.start_time)} – ${fmtTime(todayShift.end_time)}` : "No shift today"}
+        </p>
+      </div>
 
       <ClockControls />
 
-      <section>
-        <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Next 7 days</p>
-        <ul className="space-y-2">
+      <div>
+        <p className="mb-3 text-sm font-semibold text-slate-700">My schedule — next 7 days</p>
+        <div className="space-y-2">
           {lookahead.length === 0 && (
-            <li className="text-sm text-slate-500">No upcoming shifts.</li>
+            <div className="rounded-2xl bg-white p-4 text-sm text-slate-400 shadow-sm">
+              No upcoming shifts scheduled.
+            </div>
           )}
           {lookahead.map((s) => (
-            <li
+            <div
               key={s.id}
-              className="flex justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="flex items-center justify-between rounded-2xl border-l-4 border-indigo-500 bg-white p-4 shadow-sm"
             >
-              <span>{new Date(s.shift_date).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</span>
-              <span className="text-slate-600">
-                {fmt(s.start_time)} – {fmt(s.end_time)}
+              <span className="font-medium text-slate-700">{fmtDay(s.shift_date)}</span>
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
+                {fmtTime(s.start_time)} – {fmtTime(s.end_time)}
               </span>
-            </li>
+            </div>
           ))}
-        </ul>
-      </section>
+        </div>
+      </div>
     </div>
   );
 }
