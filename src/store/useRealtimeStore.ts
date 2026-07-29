@@ -13,6 +13,7 @@ export interface TeamMember {
   id: string;
   employee_id: string;
   full_name: string;
+  phone: string | null;
   status: "in" | "out";
   weeklyClosedHours: number;
   openSince: string | null;
@@ -132,9 +133,9 @@ async function refreshSelf(userId: string, set: (p: Partial<State>) => void) {
 async function refreshTeam(set: (p: Partial<State>) => void) {
   const { start, end } = weekWindow();
   const bw = biweek();
-  const { data: users } = await supabase.from("users").select("id, full_name, employee_id");
+  const { data: users } = await supabase.from("users").select("id, full_name, employee_id, phone");
   const team: TeamMember[] = [];
-  for (const u of (users as { id: string; full_name: string; employee_id: string }[]) ?? []) {
+  for (const u of (users as { id: string; full_name: string; employee_id: string; phone: string | null }[]) ?? []) {
     const { data: open } = await supabase
       .from("time_logs").select("clock_in_at").eq("user_id", u.id).is("clock_out_at", null).maybeSingle();
     const { data: closed } = await supabase.rpc("completed_hours", { p_user: u.id, p_from: start, p_to: end });
@@ -144,6 +145,7 @@ async function refreshTeam(set: (p: Partial<State>) => void) {
       id: u.id,
       employee_id: u.employee_id,
       full_name: u.full_name,
+      phone: u.phone,
       status: open ? "in" : "out",
       weeklyClosedHours: Number(closed ?? 0),
       openSince: (open as { clock_in_at: string } | null)?.clock_in_at ?? null,
