@@ -9,16 +9,18 @@ export function ManagerView({ managerId }: { managerId: string }) {
   const [selected, setSelected] = useState<string>("");
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4">
+    <div className="space-y-6 p-4">
+      <h1 className="text-xl font-bold text-slate-800">CEO dashboard</h1>
+
       <ManagerMatrix />
 
-      <section className="space-y-4">
-        <div className="flex items-center gap-3">
-          <label className="text-sm text-slate-600">Manage employee:</label>
+      <div className="rounded-2xl bg-white p-5 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <label className="text-sm font-medium text-slate-600">Manage employee:</label>
           <select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-indigo-400"
           >
             <option value="">Select…</option>
             {team.map((m) => (
@@ -29,13 +31,15 @@ export function ManagerView({ managerId }: { managerId: string }) {
           </select>
         </div>
 
-        {selected && (
+        {selected ? (
           <div className="grid gap-4 md:grid-cols-2">
             <ScheduleEditor userId={selected} />
             <PunchOverride userId={selected} managerId={managerId} />
           </div>
+        ) : (
+          <p className="text-sm text-slate-400">Pick an employee to set their schedule or fix a punch.</p>
         )}
-      </section>
+      </div>
     </div>
   );
 }
