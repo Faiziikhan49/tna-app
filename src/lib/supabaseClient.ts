@@ -7,16 +7,17 @@ export const supabase = createClient(url, anon, {
   auth: { persistSession: true, autoRefreshToken: true },
 });
 
-export async function signUpWithRoster(
+/** Sign up, then approve against the pre-approved NAME list. */
+export async function signUpWithName(
   email: string,
   password: string,
-  employeeId: string,
+  fullName: string,
 ) {
   const { error: signErr } = await supabase.auth.signUp({ email, password });
   if (signErr) throw signErr;
 
-  const { data, error } = await supabase.rpc("register_employee", {
-    p_employee_id: employeeId,
+  const { data, error } = await supabase.rpc("register_by_name", {
+    p_full_name: fullName.trim(),
   });
   if (error) {
     await supabase.auth.signOut();
@@ -25,6 +26,7 @@ export async function signUpWithRoster(
   return data;
 }
 
+/** Clock in / out via a database function (no location check). */
 export async function requestPunch(action: "clock_in" | "clock_out") {
   const { data, error } = await supabase.rpc("punch", { p_action: action });
   if (error) throw new Error(error.message.replace(/^.*:\s*/, "") || "PUNCH_FAILED");
