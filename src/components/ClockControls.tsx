@@ -14,8 +14,6 @@ export function ClockControls() {
     setError(null);
     try {
       await requestPunch(action);
-      // No local state mutation needed — the Realtime subscription updates
-      // the store, which re-renders these buttons. Dual-state by design.
     } catch (e) {
       setError(e instanceof Error ? e.message : "Punch failed");
     } finally {
@@ -24,25 +22,25 @@ export function ClockControls() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-3">
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
         <button
           disabled={isClockedIn || busy}
           onClick={() => punch("clock_in")}
-          className="flex-1 rounded-lg bg-emerald-600 py-3 font-medium text-white disabled:opacity-40"
+          className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-95 disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
         >
           Clock In
         </button>
         <button
           disabled={!isClockedIn || busy}
           onClick={() => punch("clock_out")}
-          className="flex-1 rounded-lg bg-rose-600 py-3 font-medium text-white disabled:opacity-40"
+          className="rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-95 disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
         >
           Clock Out
         </button>
       </div>
       {error && (
-        <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
+        <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>
       )}
     </div>
   );
