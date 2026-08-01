@@ -1,28 +1,25 @@
 import { useState } from "react";
-import { supabase, signUpWithName, sendPasswordReset } from "../lib/supabaseClient";
+import { signUpEmployee, signIn, sendPasswordReset } from "../lib/supabaseClient";
 
 type Mode = "signin" | "register" | "forgot";
 
 export function Auth() {
   const [mode, setMode] = useState<Mode>("signin");
+  const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
   async function submit() {
-    setBusy(true);
-    setError(null);
-    setInfo(null);
+    setBusy(true); setError(null); setInfo(null);
     try {
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await signIn(email, password);
       } else if (mode === "register") {
-        await signUpWithName(email, password, fullName, phone);
+        await signUpEmployee(firstName, email, phone, password);
       } else {
         await sendPasswordReset(email);
         setInfo("If that email exists, a reset link is on its way. Check your inbox.");
@@ -48,8 +45,8 @@ export function Auth() {
             Time &amp; Attendance
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {mode === "signin" && "Welcome back — sign in"}
-            {mode === "register" && "Register with your full name"}
+            {mode === "signin" && "Sign in to your account"}
+            {mode === "register" && "Create your account"}
             {mode === "forgot" && "Reset your password"}
           </p>
         </div>
@@ -57,8 +54,8 @@ export function Auth() {
         <div className="space-y-3">
           {mode === "register" && (
             <>
-              <input type="text" placeholder="Full name (e.g. Syed Fakher Naqvi)"
-                value={fullName} onChange={(e) => setFullName(e.target.value)} className={field} />
+              <input type="text" placeholder="First name"
+                value={firstName} onChange={(e) => setFirstName(e.target.value)} className={field} />
               <input type="tel" placeholder="Phone number"
                 value={phone} onChange={(e) => setPhone(e.target.value)} className={field} />
             </>
