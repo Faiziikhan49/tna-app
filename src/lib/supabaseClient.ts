@@ -7,7 +7,6 @@ export const supabase = createClient(url, anon, {
   auth: { persistSession: true, autoRefreshToken: true },
 });
 
-/** Sign up, then approve against the pre-approved NAME list (with phone). */
 export async function signUpWithName(
   email: string,
   password: string,
@@ -28,7 +27,6 @@ export async function signUpWithName(
   return data;
 }
 
-/** Email a password-reset link back to this app. */
 export async function sendPasswordReset(email: string) {
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
     redirectTo: window.location.origin,
@@ -36,13 +34,25 @@ export async function sendPasswordReset(email: string) {
   if (error) throw error;
 }
 
-/** Set a new password (used on the recovery screen). */
 export async function updatePassword(newPassword: string) {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
 }
 
-/** Clock in / out via a database function (no location check). */
+/** Update the signed-in user's own profile (never their role). */
+export async function updateMyProfile(opts: { fullName?: string; phone?: string; email?: string }) {
+  const { error } = await supabase.rpc("update_my_profile", {
+    p_name: opts.fullName ?? null,
+    p_phone: opts.phone ?? null,
+    p_email: opts.email ?? null,
+  });
+  if (error) throw new Error(error.message.replace(/^.*:\s*/, ""));
+  if (opts.email) {
+    const { error: e2 } = await supabase.auth.updateUser({ email: opts.email });
+    if (e2) throw e2;
+  }
+}
+
 export async function requestPunch(action: "clock_in" | "clock_out") {
   const { data, error } = await supabase.rpc("punch", { p_action: action });
   if (error) throw new Error(error.message.replace(/^.*:\s*/, "") || "PUNCH_FAILED");
