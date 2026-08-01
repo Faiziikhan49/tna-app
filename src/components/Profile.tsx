@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase, updateMyProfile } from "../lib/supabaseClient";
 
 export function Profile({ onSaved }: { onSaved?: (name: string) => void }) {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [origEmail, setOrigEmail] = useState("");
@@ -16,9 +16,9 @@ export function Profile({ onSaved }: { onSaved?: (name: string) => void }) {
       const id = u.user?.id;
       if (!id) return;
       const { data } = await supabase
-        .from("users").select("full_name, phone, email").eq("id", id).maybeSingle();
-      const row = data as { full_name: string; phone: string | null; email: string } | null;
-      setName(row?.full_name ?? "");
+        .from("users").select("first_name, phone, email").eq("id", id).maybeSingle();
+      const row = data as { first_name: string | null; phone: string | null; email: string } | null;
+      setFirstName(row?.first_name ?? "");
       setPhone(row?.phone ?? "");
       setEmail(row?.email ?? u.user?.email ?? "");
       setOrigEmail(row?.email ?? u.user?.email ?? "");
@@ -28,17 +28,17 @@ export function Profile({ onSaved }: { onSaved?: (name: string) => void }) {
   async function save() {
     setBusy(true); setErr(null); setMsg(null);
     try {
-      if (!name.trim()) throw new Error("Name can't be empty");
+      if (!firstName.trim()) throw new Error("First name can't be empty");
       const emailChanged = !!email.trim() && email.trim() !== origEmail;
       await updateMyProfile({
-        fullName: name.trim(),
+        firstName: firstName.trim(),
         phone: phone.trim(),
         email: emailChanged ? email.trim() : undefined,
       });
       setMsg(emailChanged
-        ? "Saved. Check your new email for a confirmation link to finish the email change."
+        ? "Saved. Check your new email for a confirmation link to finish the change."
         : "Profile saved.");
-      onSaved?.(name.trim());
+      onSaved?.(firstName.trim());
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed");
     } finally {
@@ -52,8 +52,8 @@ export function Profile({ onSaved }: { onSaved?: (name: string) => void }) {
   return (
     <div className="space-y-3">
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-500">Name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
+        <label className="mb-1 block text-xs font-medium text-slate-500">First name</label>
+        <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={field} />
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-500">Phone</label>
