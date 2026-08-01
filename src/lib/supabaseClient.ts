@@ -7,24 +7,29 @@ export const supabase = createClient(url, anon, {
   auth: { persistSession: true, autoRefreshToken: true },
 });
 
-export async function signUpWithName(
+/** Employee self-signup: first name + email + phone + password. */
+export async function signUpEmployee(
+  firstName: string,
   email: string,
-  password: string,
-  fullName: string,
   phone: string,
+  password: string,
 ) {
-  const { error: signErr } = await supabase.auth.signUp({ email, password });
-  if (signErr) throw signErr;
-
-  const { data, error } = await supabase.rpc("register_by_name", {
-    p_full_name: fullName.trim(),
+  const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+  if (error) throw error;
+  const { error: e2 } = await supabase.rpc("create_my_profile", {
+    p_first_name: firstName.trim(),
     p_phone: phone.trim() || null,
   });
-  if (error) {
+  if (e2) {
     await supabase.auth.signOut();
-    throw new Error(error.message.replace(/^.*ROSTER_REJECT:\s*/, "") || "Registration rejected");
+    throw new Error(e2.message.replace(/^.*:\s*/, "") || "Sign up failed");
   }
-  return data;
+}
+
+/** Login with email + password. */
+export async function signIn(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw new Error("Wrong email or password");
 }
 
 export async function sendPasswordReset(email: string) {
@@ -39,10 +44,9 @@ export async function updatePassword(newPassword: string) {
   if (error) throw error;
 }
 
-/** Update the signed-in user's own profile (never their role). */
-export async function updateMyProfile(opts: { fullName?: string; phone?: string; email?: string }) {
+export async function updateMyProfile(opts: { firstName?: string; phone?: string; email?: string }) {
   const { error } = await supabase.rpc("update_my_profile", {
-    p_name: opts.fullName ?? null,
+    p_first_name: opts.firstName ?? null,
     p_phone: opts.phone ?? null,
     p_email: opts.email ?? null,
   });
