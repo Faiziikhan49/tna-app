@@ -5,6 +5,7 @@ import { WeeklyScheduleEditor } from "./WeeklyScheduleEditor";
 import { PunchOverride } from "./PunchOverride";
 import { AddEmployee } from "./AddEmployee";
 import { CeoNotifications } from "./CeoNotifications";
+import { Modal } from "./Modal";
 
 export function ManagerView({ managerId }: { managerId: string }) {
   const team = useRealtimeStore((s) => s.team);
@@ -20,7 +21,7 @@ export function ManagerView({ managerId }: { managerId: string }) {
       <AddEmployee />
 
       <div className="rounded-2xl bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm font-medium text-slate-600">Manage employee:</label>
           <select
             value={selected}
@@ -32,17 +33,21 @@ export function ManagerView({ managerId }: { managerId: string }) {
               <option key={m.id} value={m.id}>{m.full_name}</option>
             ))}
           </select>
+          <span className="text-xs text-slate-400">Choosing someone opens their panel.</span>
         </div>
+      </div>
 
-        {member ? (
-          <div className="grid gap-4 md:grid-cols-2">
+      <Modal open={!!member} onClose={() => setSelected("")} title={member ? `Manage ${member.full_name}` : ""}>
+        {member && (
+          <div className="space-y-4">
+            <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              {member.phone ? <span>📞 {member.phone}</span> : <span>No phone on file</span>}
+            </div>
             <WeeklyScheduleEditor employeeId={member.employee_id} name={member.full_name} />
             <PunchOverride userId={member.id} managerId={managerId} />
           </div>
-        ) : (
-          <p className="text-sm text-slate-400">Pick an employee to set their weekly schedule or fix a punch.</p>
         )}
-      </div>
+      </Modal>
     </div>
   );
 }
