@@ -7,6 +7,8 @@ import { EmployeeDashboard } from "./components/EmployeeDashboard";
 import { ManagerView } from "./components/ManagerView";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { ResetPassword } from "./components/ResetPassword";
+import { Modal } from "./components/Modal";
+import { Profile as ProfileForm } from "./components/Profile";
 
 interface Profile {
   id: string;
@@ -32,6 +34,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [recovering, setRecovering] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const initDone = useRef(false);
 
   const init = useRealtimeStore((s) => s.init);
@@ -124,9 +127,17 @@ export function App() {
               </span>
             </div>
           </div>
-          <button onClick={signOut} className="text-sm font-medium text-white/90 hover:text-white">
-            Sign out
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setProfileOpen(true)}
+              className="rounded-lg bg-white/20 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/30"
+            >
+              Profile
+            </button>
+            <button onClick={signOut} className="text-sm font-medium text-white/90 hover:text-white">
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 
@@ -135,6 +146,10 @@ export function App() {
       </main>
 
       <InstallPrompt />
+
+      <Modal open={profileOpen} onClose={() => setProfileOpen(false)} title="My profile">
+        <ProfileForm onSaved={(n) => setProfile({ ...profile, full_name: n })} />
+      </Modal>
     </div>
   );
 }
