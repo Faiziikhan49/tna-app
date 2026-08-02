@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useRealtimeStore } from "../store/useRealtimeStore";
-import { requestSwap, acceptSwap, hhmm } from "../lib/scheduling";
+import { requestSwap, acceptSwap, declineSwap, hhmm } from "../lib/scheduling";
 
 interface RosterRow { employee_id: string; full_name: string }
 interface Swap {
@@ -47,8 +47,12 @@ export function SwapPanel() {
     }
   }
 
-  async function take(id: string) {
-    try { await acceptSwap(id); } catch (e) {
+  async function respond(id: string, accept: boolean) {
+    try {
+      if (accept) await acceptSwap(id);
+      else await declineSwap(id);
+      setIncoming((list) => list.filter((s) => s.id !== id));
+    } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
     }
   }
@@ -80,14 +84,20 @@ export function SwapPanel() {
           <h2 className="mb-2 font-bold text-indigo-800">Cover requests for you</h2>
           <ul className="space-y-2">
             {incoming.map((s) => (
-              <li key={s.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-2">
+              <li key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-white px-4 py-2">
                 <span className="text-sm text-slate-700">
                   {nameOf(s.original_employee_id)} · {new Date(s.swap_date + "T00:00").toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} · {hhmm(s.start_time)}–{hhmm(s.end_time)}
                 </span>
-                <button onClick={() => take(s.id)}
-                  className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-medium text-white">
-                  Accept
-                </button>
+                <span className="flex gap-2">
+                  <button onClick={() => respond(s.id, true)}
+                    className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-medium text-white">
+                    Accept
+                  </button>
+                  <button onClick={() => respond(s.id, false)}
+                    className="rounded-lg bg-rose-500 px-3 py-1 text-sm font-medium text-white">
+                    Decline
+                  </button>
+                </span>
               </li>
             ))}
           </ul>
