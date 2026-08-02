@@ -34,9 +34,11 @@ interface State {
   closedHoursThisWeek: number;
   team: TeamMember[];
   notifications: AppNotification[];
+  myAlerts: AppNotification[];
   tick: number;
   init: (userId: string, role: "employee" | "manager") => Promise<void>;
   clearNotifications: () => Promise<void>;
+  clearMyAlerts: () => Promise<void>;
   teardown: () => void;
 }
 
@@ -59,6 +61,7 @@ export const useRealtimeStore = create<State>((set, get) => ({
   closedHoursThisWeek: 0,
   team: [],
   notifications: [],
+  myAlerts: [],
   tick: 0,
 
   init: async (userId, role) => {
@@ -66,12 +69,15 @@ export const useRealtimeStore = create<State>((set, get) => ({
 
     const { data: me } = await supabase
       .from("users").select("employee_id").eq("id", userId).maybeSingle();
-    set({ myEmployeeId: (me as { employee_id: string } | null)?.employee_id ?? null });
+    const myEmp = (me as { employee_id: string } | null)?.employee_id ?? null;
+    set({ myEmployeeId: myEmp });
 
     await refreshSelf(userId, set);
     if (role === "manager") {
       await refreshTeam(set);
       await refreshNotifications(set);
+    } else {
+      await refreshMyAlerts(myEmp, set);
     }
 
     const bump = () => set({ tick: get().tick + 1 });
@@ -105,6 +111,7 @@ export const useRealtimeStore = create<State>((set, get) => ({
       .channel("rt-notifs")
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, async () => {
         if (get().role === "manager") await refreshNotifications(set);
+        else await refreshMyAlerts(get().myEmployeeId, set);
       })
       .subscribe();
 
@@ -112,8 +119,14 @@ export const useRealtimeStore = create<State>((set, get) => ({
   },
 
   clearNotifications: async () => {
-    await supabase.from("notifications").update({ read: true }).eq("read", false);
+    await supabase.from("notifications").update({ read: true }).eq("read", false).is("for_employee_id", null);
     set({ notifications: [] });
+  },
+
+  clearMyAlerts: async () => {
+    const emp = get().myEmployeeId;
+    if (emp) await supabase.from("notifications").update({ read: true }).eq("for_employee_id", emp);
+    set({ myAlerts: [] });
   },
 
   teardown: () => {
@@ -133,7 +146,8 @@ async function refreshSelf(userId: string, set: (p: Partial<State>) => void) {
 async function refreshTeam(set: (p: Partial<State>) => void) {
   const { start, end } = weekWindow();
   const bw = biweek();
-  const { data: users } = await supabase.from("users").select("id, full_name, employee_id, phone").eq("role", "employee");
+  const { data: users } = await supabase
+    .from("users").select("id, full_name, employee_id, phone").eq("role", "employee");
   const team: TeamMember[] = [];
   for (const u of (users as { id: string; full_name: string; employee_id: string; phone: string | null }[]) ?? []) {
     const { data: open } = await supabase
@@ -159,6 +173,14 @@ async function refreshTeam(set: (p: Partial<State>) => void) {
 async function refreshNotifications(set: (p: Partial<State>) => void) {
   const { data } = await supabase
     .from("notifications").select("id, message, created_at")
-    .eq("read", false).order("created_at", { ascending: false });
+    .eq("read", false).is("for_employee_id", null).order("created_at", { ascending: false });
   set({ notifications: (data as AppNotification[]) ?? [] });
+}
+
+async function refreshMyAlerts(empId: string | null, set: (p: Partial<State>) => void) {
+  if (!empId) { set({ myAlerts: [] }); return; }
+  const { data } = await supabase
+    .from("notifications").select("id, message, created_at")
+    .eq("read", false).eq("for_employee_id", empId).order("created_at", { ascending: false });
+  set({ myAlerts: (data as AppNotification[]) ?? [] });
 }
