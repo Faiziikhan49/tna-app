@@ -64,6 +64,10 @@ export async function acceptSwap(id: string) {
   const { error } = await supabase.rpc("accept_swap", { p_id: id });
   if (error) throw new Error(error.message.replace(/^.*:\s*/, ""));
 }
+export async function declineSwap(id: string) {
+  const { error } = await supabase.rpc("decline_swap", { p_id: id });
+  if (error) throw new Error(error.message.replace(/^.*:\s*/, ""));
+}
 
 export async function scheduledHours(employeeId: string, from: string, to: string) {
   const { data } = await supabase.rpc("scheduled_hours", {
