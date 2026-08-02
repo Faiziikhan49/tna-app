@@ -133,7 +133,7 @@ async function refreshSelf(userId: string, set: (p: Partial<State>) => void) {
 async function refreshTeam(set: (p: Partial<State>) => void) {
   const { start, end } = weekWindow();
   const bw = biweek();
-  const { data: users } = await supabase.from("users").select("id, full_name, employee_id, phone");
+  const { data: users } = await supabase.from("users").select("id, full_name, employee_id, phone").eq("role", "employee");
   const team: TeamMember[] = [];
   for (const u of (users as { id: string; full_name: string; employee_id: string; phone: string | null }[]) ?? []) {
     const { data: open } = await supabase
