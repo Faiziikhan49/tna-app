@@ -23,8 +23,7 @@ export function SwapPanel() {
 
   useEffect(() => {
     (async () => {
-      const { data: r } = await supabase
-        .from("users").select("employee_id, full_name").eq("role", "employee");
+      const { data: r } = await supabase.rpc("list_coworkers");
       setRoster((r as RosterRow[]) ?? []);
       const { data: s } = await supabase
         .from("shift_swaps").select("*")
