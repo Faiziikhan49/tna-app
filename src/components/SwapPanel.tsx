@@ -24,7 +24,7 @@ export function SwapPanel() {
   useEffect(() => {
     (async () => {
       const { data: r } = await supabase
-        .from("master_corporate_roster").select("employee_id, full_name");
+        .from("users").select("employee_id, full_name").eq("role", "employee");
       setRoster((r as RosterRow[]) ?? []);
       const { data: s } = await supabase
         .from("shift_swaps").select("*")
