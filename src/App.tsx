@@ -9,6 +9,7 @@ import { InstallPrompt } from "./components/InstallPrompt";
 import { ResetPassword } from "./components/ResetPassword";
 import { Modal } from "./components/Modal";
 import { Profile as ProfileForm } from "./components/Profile";
+import { useAutoUpdate } from "./useAutoUpdate";
 
 interface Profile {
   id: string;
@@ -29,6 +30,7 @@ async function loadProfile(userId: string): Promise<Profile | null> {
 }
 
 export function App() {
+  useAutoUpdate();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
