@@ -14,7 +14,7 @@ export function ManagerView({ managerId }: { managerId: string }) {
 
   return (
     <div className="space-y-6 p-4">
-      <h1 className="text-xl font-bold text-slate-800">CEO dashboard</h1>
+      <h1 className="text-xl font-bold text-slate-800">Employees Schedule Management</h1>
 
       <CeoNotifications />
       <ManagerMatrix />
